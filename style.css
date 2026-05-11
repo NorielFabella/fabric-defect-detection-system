@@ -1,0 +1,142 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+}
+
+.container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #0d0d0d;
+}
+
+h1 {
+    background-color: #2a2a2a;
+    padding: 12px;
+    text-align: center;
+    font-size: 18px;
+    border-bottom: 2px solid #ff6b00;
+}
+
+.video-container {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    background-color: #000;
+    overflow: hidden;
+}
+
+video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border-top: 1px solid #444;
+    justify-content: center;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#startBtn {
+    background-color: #00c851;
+    color: #fff;
+}
+
+#startBtn:hover {
+    background-color: #00aa41;
+    box-shadow: 0 0 10px rgba(0, 200, 81, 0.5);
+}
+
+#startBtn:active {
+    transform: scale(0.98);
+}
+
+#stopBtn {
+    background-color: #cc0000;
+    color: #fff;
+}
+
+#stopBtn:hover {
+    background-color: #aa0000;
+    box-shadow: 0 0 10px rgba(204, 0, 0, 0.5);
+}
+
+#stopBtn:active {
+    transform: scale(0.98);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 16px;
+        padding: 10px;
+    }
+
+    .controls {
+        padding: 10px;
+        gap: 8px;
+    }
+
+    button {
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .controls {
+        padding: 8px;
+        gap: 6px;
+        flex-direction: column;
+    }
+
+    button {
+        padding: 8px 12px;
+        font-size: 12px;
+        flex: 1;
+    }
+}
