@@ -10,6 +10,11 @@ let mediaStream = null;
 let objectDetector = null;
 let imageClassifier = null;
 
+// Voice output state
+let lastSpokenLabel = null;
+let lastSpokenTime = 0;
+const SPEECH_COOLDOWN_MS = 2000;
+
 // Initialize MediaPipe Vision Tasks
 async function initializeMediaPipe() {
     try {
@@ -20,8 +25,8 @@ async function initializeMediaPipe() {
         // Create ObjectDetector
         objectDetector = await ObjectDetector.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: 'detectorv3.tflite',
-                delegate: 'GPU' 
+                modelAssetPath: 'detectorv4.tflite',
+                delegate: 'GPU'
             },
             runningMode: 'VIDEO',
             maxResults: 5,
@@ -29,13 +34,12 @@ async function initializeMediaPipe() {
         });
 
         // Create ImageClassifier
-        // FIXED: Set runningMode to 'IMAGE' since we feed it a static cropped canvas
         imageClassifier = await ImageClassifier.createFromOptions(vision, {
             baseOptions: {
                 modelAssetPath: 'classifierv5.tflite',
-                delegate: 'GPU' 
+                delegate: 'GPU'
             },
-            runningMode: 'IMAGE', 
+            runningMode: 'IMAGE',
             maxResults: 3,
             scoreThreshold: 0.3
         });
@@ -49,9 +53,39 @@ async function initializeMediaPipe() {
 
 // Initialize canvas size to match the camera's true resolution
 function initializeCanvas() {
-    // Instead of using the CSS bounding box, use the intrinsic video feed size
     canvasElement.width = videoElement.videoWidth;
     canvasElement.height = videoElement.videoHeight;
+}
+
+// Speak detected defect name, but do not spam repeated speech
+function speakDefect(label) {
+    const now = Date.now();
+
+    if (!label) return;
+
+    const normalized = label.toLowerCase().replace(/\s+/g, '_');
+
+    // Do not speak defect_free
+    if (normalized === 'defect_free') return;
+
+    // Prevent repeated speech for the same label too quickly
+    if (normalized === lastSpokenLabel && (now - lastSpokenTime) < SPEECH_COOLDOWN_MS) {
+        return;
+    }
+
+    // Cancel any ongoing speech so announcements do not overlap
+    window.speechSynthesis.cancel();
+
+    const cleanLabel = label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const utterance = new SpeechSynthesisUtterance(`${cleanLabel} detected`);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    window.speechSynthesis.speak(utterance);
+
+    lastSpokenLabel = normalized;
+    lastSpokenTime = now;
 }
 
 // Request camera access with rear-facing preference
@@ -68,17 +102,17 @@ async function startCamera() {
 
         mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
         videoElement.srcObject = mediaStream;
-        
+
         videoElement.onloadedmetadata = () => {
             videoElement.play();
             initializeCanvas();
-            startProcessing(); 
+            startProcessing();
         };
 
         window.addEventListener('resize', initializeCanvas);
         startBtn.disabled = true;
         stopBtn.disabled = false;
-        
+
         console.log('Camera started successfully');
     } catch (error) {
         console.error('Error accessing camera:', error);
@@ -89,14 +123,14 @@ async function startCamera() {
 }
 
 function stopCamera() {
-    stopProcessing(); 
-    
+    stopProcessing();
+
     if (mediaStream) {
         mediaStream.getTracks().forEach(track => track.stop());
         videoElement.srcObject = null;
         mediaStream = null;
     }
-    
+
     startBtn.disabled = false;
     stopBtn.disabled = true;
     console.log('Camera stopped');
@@ -119,6 +153,8 @@ function processVideoFrame(timestamp) {
 
     try {
         const detections = objectDetector.detectForVideo(videoElement, timestamp);
+        let bestSpokenLabel = null;
+        let bestSpokenConfidence = 0;
 
         if (detections.detections && detections.detections.length > 0) {
             for (const detection of detections.detections) {
@@ -137,7 +173,6 @@ function processVideoFrame(timestamp) {
                     0, 0, width, height
                 );
 
-                // FIXED: API syntax for Image mode classification
                 const classification = imageClassifier.classify(offscreenCanvas);
 
                 if (classification.classifications && classification.classifications.length > 0) {
@@ -148,12 +183,20 @@ function processVideoFrame(timestamp) {
                         const label = topCategory.categoryName;
                         const confidence = topCategory.score;
 
-                        if (label.toLowerCase() !== 'defect_free') {
-                            let boxColor = '#ff0000'; 
+                        const normalized = label.toLowerCase().replace(/\s+/g, '_');
+
+                        if (normalized !== 'defect_free') {
+                            // Keep the strongest defect for voice output this frame
+                            if (confidence > bestSpokenConfidence) {
+                                bestSpokenConfidence = confidence;
+                                bestSpokenLabel = label;
+                            }
+
+                            let boxColor = '#ff0000';
                             if (confidence >= 0.8) {
-                                boxColor = '#00ff00'; 
+                                boxColor = '#00ff00';
                             } else if (confidence >= 0.5) {
-                                boxColor = '#ffa500'; 
+                                boxColor = '#ffa500';
                             }
 
                             ctx.strokeStyle = boxColor;
@@ -180,25 +223,25 @@ function processVideoFrame(timestamp) {
                     }
                 }
             }
-        }
-        else {
-            // NEW: If no defects are found, draw the green text
+
+            // Speak once per frame, not once per box
+            if (bestSpokenLabel && bestSpokenConfidence >= 0.5) {
+                speakDefect(bestSpokenLabel);
+            }
+        } else {
             const text = "No defects detected";
             ctx.font = "bold 24px Arial";
-            ctx.fillStyle = "#00ff00"; // Bright Green
-            
-            // Draw a subtle black shadow so it's readable on light fabric
+            ctx.fillStyle = "#00ff00";
+
             ctx.shadowColor = "black";
             ctx.shadowBlur = 4;
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
-            
-            // Put text at the top center of the screen
+
             const textWidth = ctx.measureText(text).width;
             ctx.fillText(text, (canvasElement.width / 2) - (textWidth / 2), 40);
-            
-            // Reset shadow so it doesn't affect bounding boxes later
-            ctx.shadowColor = "transparent"; 
+
+            ctx.shadowColor = "transparent";
         }
     } catch (error) {
         console.error('Error processing frame:', error);
@@ -219,6 +262,11 @@ function stopProcessing() {
         animationFrameId = null;
     }
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+    // Stop any ongoing speech when camera stops
+    window.speechSynthesis.cancel();
+    lastSpokenLabel = null;
+    lastSpokenTime = 0;
 }
 
 startBtn.addEventListener('click', startCamera);
