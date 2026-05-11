@@ -25,7 +25,7 @@ async function initializeMediaPipe() {
             },
             runningMode: 'VIDEO',
             maxResults: 5,
-            scoreThreshold: 0.5
+            scoreThreshold: 0.3
         });
 
         // Create ImageClassifier
@@ -37,7 +37,7 @@ async function initializeMediaPipe() {
             },
             runningMode: 'IMAGE', 
             maxResults: 3,
-            scoreThreshold: 0.5
+            scoreThreshold: 0.3
         });
 
         console.log('MediaPipe models loaded successfully!');
@@ -180,6 +180,25 @@ function processVideoFrame(timestamp) {
                     }
                 }
             }
+        }
+        else {
+            // NEW: If no defects are found, draw the green text
+            const text = "No defects detected";
+            ctx.font = "bold 24px Arial";
+            ctx.fillStyle = "#00ff00"; // Bright Green
+            
+            // Draw a subtle black shadow so it's readable on light fabric
+            ctx.shadowColor = "black";
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            
+            // Put text at the top center of the screen
+            const textWidth = ctx.measureText(text).width;
+            ctx.fillText(text, (canvasElement.width / 2) - (textWidth / 2), 40);
+            
+            // Reset shadow so it doesn't affect bounding boxes later
+            ctx.shadowColor = "transparent"; 
         }
     } catch (error) {
         console.error('Error processing frame:', error);
