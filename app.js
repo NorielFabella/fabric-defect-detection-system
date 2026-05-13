@@ -12,6 +12,10 @@ const latencyValEl = document.getElementById('latency-val');
 let frameCount = 0;
 let lastFpsTime = performance.now();
 
+// Add these to the top of app.js
+let classificationThrottle = 0;
+let cachedLabels = new Map(); // Store labels for boxes
+
 let mediaStream = null;
 let objectDetector = null;
 let imageClassifier = null;
@@ -288,7 +292,6 @@ let animationFrameId = null;
 // MAIN PROCESSING LOOP
 // ---------------------------
 
-// Replace your existing processVideoFrame function with this one:
 function processVideoFrame(timestamp) {
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
@@ -299,57 +302,95 @@ function processVideoFrame(timestamp) {
 
     const frameStartTime = performance.now(); // Start timer
 
+    // --- OPTIMIZATION 3 SETUP: Frame Skipping ---
+    classificationThrottle++;
+    const shouldClassify = classificationThrottle % 3 === 0; // Classify every 3rd frame
+    
+    // Clear the cache when we classify to prevent old box data from building up in memory
+    if (shouldClassify) {
+        cachedLabels.clear();
+    }
+
     try {
         const detections = objectDetector.detectForVideo(videoElement, timestamp);
         let bestLabel = null;
         let bestConfidence = 0;
 
         if (detections.detections && detections.detections.length > 0) {
-            for (const detection of detections.detections) {
+            
+            // --- OPTIMIZATION 2: Limit Classifications ---
+            // Sort by the detector's confidence score and only keep the top 2 detections
+            const topDetections = detections.detections
+                .sort((a, b) => b.categories[0].score - a.categories[0].score)
+                .slice(0, 2); 
+
+            for (const detection of topDetections) {
                 const bbox = detection.boundingBox;
                 const startX = bbox.originX;
                 const startY = bbox.originY;
                 const width = bbox.width;
                 const height = bbox.height;
 
-                offscreenCanvas.width = width;
-                offscreenCanvas.height = height;
+                // Create a spatial key based on approximate coordinates (rounded to nearest 20px)
+                // This lets us recognize the same bounding box across multiple frames
+                const boxKey = `${Math.round(startX/20)}_${Math.round(startY/20)}`;
+                
+                let label = "Defect"; // Fallback label
+                let confidence = detection.categories[0].score; // Detector confidence
 
-                offscreenCtx.drawImage(videoElement, startX, startY, width, height, 0, 0, width, height);
-                const classification = imageClassifier.classify(offscreenCanvas);
+                // --- OPTIMIZATION 3 EXECUTION: Conditional Classification ---
+                if (shouldClassify) {
+                    offscreenCanvas.width = width;
+                    offscreenCanvas.height = height;
+                    offscreenCtx.drawImage(videoElement, startX, startY, width, height, 0, 0, width, height);
+                    
+                    const classification = imageClassifier.classify(offscreenCanvas);
 
-                if (classification.classifications && classification.classifications.length > 0) {
-                    const categories = classification.classifications[0].categories;
-                    if (categories.length > 0) {
-                        const topCategory = categories[0];
-                        const label = topCategory.categoryName;
-                        const confidence = topCategory.score;
-                        const normalized = label.toLowerCase().replace(/\s+/g, '_');
-
-                        if (normalized !== 'defect_free') {
-                            if (confidence > bestConfidence) {
-                                bestConfidence = confidence;
-                                bestLabel = label;
-                            }
-
-                            let boxColor = '#ff0000';
-                            if (confidence >= 0.8) boxColor = '#00ff00';
-                            else if (confidence >= 0.5) boxColor = '#ffa500';
-
-                            ctx.strokeStyle = boxColor;
-                            ctx.lineWidth = 3;
-                            ctx.strokeRect(startX, startY, width, height);
-
-                            const labelText = `${label} (${(confidence * 100).toFixed(1)}%)`;
-                            ctx.font = 'bold 16px Arial';
-                            const textWidth = ctx.measureText(labelText).width;
-
-                            ctx.fillStyle = boxColor;
-                            ctx.fillRect(startX, startY - 30, textWidth + 10, 28);
-                            ctx.fillStyle = '#000000';
-                            ctx.fillText(labelText, startX + 5, startY - 10);
+                    if (classification.classifications && classification.classifications.length > 0) {
+                        const categories = classification.classifications[0].categories;
+                        if (categories.length > 0) {
+                            const topCategory = categories[0];
+                            label = topCategory.categoryName;
+                            confidence = topCategory.score;
+                            
+                            // Save result to cache
+                            cachedLabels.set(boxKey, { label: label, confidence: confidence });
                         }
                     }
+                } else {
+                    // Skip the classifier and use the cached result from the previous frame
+                    const cached = cachedLabels.get(boxKey);
+                    if (cached) {
+                        label = cached.label;
+                        confidence = cached.confidence;
+                    }
+                }
+
+                // Normal drawing and voice logic below
+                const normalized = label.toLowerCase().replace(/\s+/g, '_');
+
+                if (normalized !== 'defect_free') {
+                    if (confidence > bestConfidence) {
+                        bestConfidence = confidence;
+                        bestLabel = label;
+                    }
+
+                    let boxColor = '#ff0000';
+                    if (confidence >= 0.8) boxColor = '#00ff00';
+                    else if (confidence >= 0.5) boxColor = '#ffa500';
+
+                    ctx.strokeStyle = boxColor;
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(startX, startY, width, height);
+
+                    const labelText = `${label} (${(confidence * 100).toFixed(1)}%)`;
+                    ctx.font = 'bold 16px Arial';
+                    const textWidth = ctx.measureText(labelText).width;
+
+                    ctx.fillStyle = boxColor;
+                    ctx.fillRect(startX, startY - 30, textWidth + 10, 28);
+                    ctx.fillStyle = '#000000';
+                    ctx.fillText(labelText, startX + 5, startY - 10);
                 }
             }
 
