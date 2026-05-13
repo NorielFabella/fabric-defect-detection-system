@@ -52,6 +52,9 @@
             <div class="video-container">
                 <video id="video" autoplay playsinline></video>
                 <canvas id="canvas"></canvas>
+                <div id="stats-overlay" class="stats-overlay">
+                    FPS: <span id="fps-val">0</span> | Latency: <span id="latency-val">0</span> ms
+                </div>
             </div>
             <div class="controls">
                 <button id="startBtn">Start Camera</button>
@@ -69,7 +72,11 @@
             <div class="upload-box">
                 <input type="file" id="imageInput" accept="image/*">
                 <p>Select a fabric image to analyze for defects.</p>
-                </div>
+            </div>
+            <div id="upload-result-container" class="upload-result-container hidden">
+                <img id="uploaded-image" alt="Uploaded Fabric" />
+                <canvas id="upload-canvas"></canvas>
+            </div>
         </div>
     </div>
 

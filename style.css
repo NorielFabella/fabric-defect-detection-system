@@ -211,6 +211,51 @@ button {
     letter-spacing: 0.5px;
 }
 
+/* --- STATS OVERLAY --- */
+.stats-overlay {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #00ff00;
+    padding: 8px 12px;
+    font-family: monospace;
+    font-size: 14px;
+    border-radius: 4px;
+    z-index: 10;
+    border: 1px solid #444;
+}
+
+/* --- UPLOAD RESULT STYLES --- */
+.upload-result-container {
+    position: relative;
+    margin-top: 30px;
+    max-width: 100%;
+    border: 2px solid #ff6b00;
+    border-radius: 8px;
+    overflow: hidden;
+    display: inline-block; 
+}
+
+.upload-result-container.hidden {
+    display: none !important;
+}
+
+#uploaded-image {
+    display: block;
+    max-width: 100%; /* Keeps it responsive on screen */
+    height: auto;
+}
+
+#upload-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Allows clicks to pass through if needed later */
+}
+
 #startBtn { background-color: #00c851; color: #fff; }
 #startBtn:hover { background-color: #00aa41; box-shadow: 0 0 10px rgba(0, 200, 81, 0.5); }
 #startBtn:active { transform: scale(0.98); }

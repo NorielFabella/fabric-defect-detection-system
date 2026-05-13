@@ -6,6 +6,12 @@ const canvasElement = document.getElementById('canvas');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 
+// Add these variables near the top of your file with the other let declarations
+const fpsValEl = document.getElementById('fps-val');
+const latencyValEl = document.getElementById('latency-val');
+let frameCount = 0;
+let lastFpsTime = performance.now();
+
 let mediaStream = null;
 let objectDetector = null;
 let imageClassifier = null;
@@ -282,36 +288,25 @@ let animationFrameId = null;
 // MAIN PROCESSING LOOP
 // ---------------------------
 
+// Replace your existing processVideoFrame function with this one:
 function processVideoFrame(timestamp) {
-
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
     if (videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) {
-
         animationFrameId = requestAnimationFrame(processVideoFrame);
-
         return;
     }
 
+    const frameStartTime = performance.now(); // Start timer
+
     try {
-
-        const detections = objectDetector.detectForVideo(
-            videoElement,
-            timestamp
-        );
-
+        const detections = objectDetector.detectForVideo(videoElement, timestamp);
         let bestLabel = null;
         let bestConfidence = 0;
 
-        if (
-            detections.detections &&
-            detections.detections.length > 0
-        ) {
-
+        if (detections.detections && detections.detections.length > 0) {
             for (const detection of detections.detections) {
-
                 const bbox = detection.boundingBox;
-
                 const startX = bbox.originX;
                 const startY = bbox.originY;
                 const width = bbox.width;
@@ -320,129 +315,68 @@ function processVideoFrame(timestamp) {
                 offscreenCanvas.width = width;
                 offscreenCanvas.height = height;
 
-                offscreenCtx.drawImage(
-                    videoElement,
-                    startX,
-                    startY,
-                    width,
-                    height,
-                    0,
-                    0,
-                    width,
-                    height
-                );
+                offscreenCtx.drawImage(videoElement, startX, startY, width, height, 0, 0, width, height);
+                const classification = imageClassifier.classify(offscreenCanvas);
 
-                const classification = imageClassifier.classify(
-                    offscreenCanvas
-                );
-
-                if (
-                    classification.classifications &&
-                    classification.classifications.length > 0
-                ) {
-
-                    const categories =
-                        classification.classifications[0].categories;
-
+                if (classification.classifications && classification.classifications.length > 0) {
+                    const categories = classification.classifications[0].categories;
                     if (categories.length > 0) {
-
                         const topCategory = categories[0];
-
                         const label = topCategory.categoryName;
-
                         const confidence = topCategory.score;
-
-                        const normalized =
-                            label.toLowerCase().replace(/\s+/g, '_');
+                        const normalized = label.toLowerCase().replace(/\s+/g, '_');
 
                         if (normalized !== 'defect_free') {
-
-                            // Voice candidate
                             if (confidence > bestConfidence) {
-
                                 bestConfidence = confidence;
-
                                 bestLabel = label;
                             }
 
-                            // Box color
                             let boxColor = '#ff0000';
+                            if (confidence >= 0.8) boxColor = '#00ff00';
+                            else if (confidence >= 0.5) boxColor = '#ffa500';
 
-                            if (confidence >= 0.8) {
-
-                                boxColor = '#00ff00';
-
-                            } else if (confidence >= 0.5) {
-
-                                boxColor = '#ffa500';
-                            }
-
-                            // Draw box
                             ctx.strokeStyle = boxColor;
                             ctx.lineWidth = 3;
+                            ctx.strokeRect(startX, startY, width, height);
 
-                            ctx.strokeRect(
-                                startX,
-                                startY,
-                                width,
-                                height
-                            );
-
-                            // Label text
-                            const labelText =
-                                `${label} (${(confidence * 100).toFixed(1)}%)`;
-
+                            const labelText = `${label} (${(confidence * 100).toFixed(1)}%)`;
                             ctx.font = 'bold 16px Arial';
-
-                            const textWidth =
-                                ctx.measureText(labelText).width;
+                            const textWidth = ctx.measureText(labelText).width;
 
                             ctx.fillStyle = boxColor;
-
-                            ctx.fillRect(
-                                startX,
-                                startY - 30,
-                                textWidth + 10,
-                                28
-                            );
-
+                            ctx.fillRect(startX, startY - 30, textWidth + 10, 28);
                             ctx.fillStyle = '#000000';
-
-                            ctx.fillText(
-                                labelText,
-                                startX + 5,
-                                startY - 10
-                            );
+                            ctx.fillText(labelText, startX + 5, startY - 10);
                         }
                     }
                 }
             }
 
-            // Speak strongest defect only
-            if (
-                bestLabel &&
-                bestConfidence >= 0.5
-            ) {
-
+            if (bestLabel && bestConfidence >= 0.5) {
                 speakDefect(bestLabel);
             }
 
         } else {
-
             ctx.font = 'bold 24px Arial';
-
             ctx.fillStyle = '#00ff00';
-
-            ctx.fillText(
-                'No defects detected',
-                20,
-                40
-            );
+            ctx.fillText('No defects detected', 20, 40);
         }
 
     } catch (error) {
-
         console.error('Frame processing error:', error);
+    }
+
+    // --- LATENCY & FPS CALCULATION ---
+    const frameEndTime = performance.now();
+    const latency = frameEndTime - frameStartTime;
+    latencyValEl.textContent = latency.toFixed(1);
+
+    frameCount++;
+    if (frameEndTime - lastFpsTime >= 1000) { // Update FPS every 1 second
+        fpsValEl.textContent = frameCount;
+        frameCount = 0;
+        lastFpsTime = frameEndTime;
     }
 
     animationFrameId = requestAnimationFrame(processVideoFrame);
@@ -493,3 +427,110 @@ stopBtn.disabled = true;
 // ---------------------------
 
 initializeMediaPipe();
+
+
+// ---------------------------
+// STATIC IMAGE UPLOAD PROCESSING
+// ---------------------------
+
+const imageInput = document.getElementById('imageInput');
+const uploadResultContainer = document.getElementById('upload-result-container');
+const uploadedImage = document.getElementById('uploaded-image');
+const uploadCanvas = document.getElementById('upload-canvas');
+const uploadCtx = uploadCanvas.getContext('2d');
+
+// Load selected image
+imageInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        uploadedImage.src = e.target.result;
+        uploadResultContainer.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+});
+
+// Once image renders, process it
+uploadedImage.addEventListener('load', () => {
+    // Match canvas internal resolution to the actual image pixels
+    uploadCanvas.width = uploadedImage.naturalWidth;
+    uploadCanvas.height = uploadedImage.naturalHeight;
+    processStaticImage();
+});
+
+function processStaticImage() {
+    if (!objectDetector || !imageClassifier) {
+        alert("AI Models are still loading, please wait a moment...");
+        return;
+    }
+
+    uploadCtx.clearRect(0, 0, uploadCanvas.width, uploadCanvas.height);
+
+    try {
+        // We use detectForVideo with a mock timestamp because the model was initialized in VIDEO mode
+        const detections = objectDetector.detectForVideo(uploadedImage, performance.now());
+
+        if (detections.detections && detections.detections.length > 0) {
+            for (const detection of detections.detections) {
+                const bbox = detection.boundingBox;
+                const startX = bbox.originX;
+                const startY = bbox.originY;
+                const width = bbox.width;
+                const height = bbox.height;
+
+                // Crop for classification
+                offscreenCanvas.width = width;
+                offscreenCanvas.height = height;
+                offscreenCtx.drawImage(uploadedImage, startX, startY, width, height, 0, 0, width, height);
+
+                const classification = imageClassifier.classify(offscreenCanvas);
+
+                if (classification.classifications && classification.classifications.length > 0) {
+                    const categories = classification.classifications[0].categories;
+                    if (categories.length > 0) {
+                        const topCategory = categories[0];
+                        const label = topCategory.categoryName;
+                        const confidence = topCategory.score;
+                        const normalized = label.toLowerCase().replace(/\s+/g, '_');
+
+                        if (normalized !== 'defect_free') {
+                            let boxColor = '#ff0000';
+                            if (confidence >= 0.8) boxColor = '#00ff00';
+                            else if (confidence >= 0.5) boxColor = '#ffa500';
+
+                            // Scale drawing elements based on image resolution
+                            const scaleFactor = Math.max(1, uploadCanvas.width / 800); 
+
+                            // Draw box
+                            uploadCtx.strokeStyle = boxColor;
+                            uploadCtx.lineWidth = 4 * scaleFactor;
+                            uploadCtx.strokeRect(startX, startY, width, height);
+
+                            // Draw Label
+                            const labelText = `${label} (${(confidence * 100).toFixed(1)}%)`;
+                            uploadCtx.font = `bold ${18 * scaleFactor}px Arial`;
+                            const textWidth = uploadCtx.measureText(labelText).width;
+
+                            uploadCtx.fillStyle = boxColor;
+                            uploadCtx.fillRect(startX, startY - (30 * scaleFactor), textWidth + (15 * scaleFactor), (30 * scaleFactor));
+
+                            uploadCtx.fillStyle = '#000000';
+                            uploadCtx.fillText(labelText, startX + (5 * scaleFactor), startY - (8 * scaleFactor));
+                        }
+                    }
+                }
+            }
+        } else {
+            // Draw "No defects" text
+            const scaleFactor = Math.max(1, uploadCanvas.width / 800);
+            uploadCtx.font = `bold ${24 * scaleFactor}px Arial`;
+            uploadCtx.fillStyle = '#00ff00';
+            uploadCtx.fillText('No defects detected', 20 * scaleFactor, 40 * scaleFactor);
+        }
+    } catch (error) {
+        console.error('Image processing error:', error);
+        alert("Error analyzing image.");
+    }
+}
