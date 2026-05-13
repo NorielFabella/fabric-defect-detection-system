@@ -22,7 +22,7 @@ async function initializeMediaPipe() {
             },
             runningMode: 'VIDEO',
             maxResults: 5,
-            scoreThreshold: 0.3
+            scoreThreshold: 0.5
         });
 
         console.log('Detector loaded successfully!');
