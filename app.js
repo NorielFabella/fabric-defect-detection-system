@@ -82,19 +82,17 @@ voiceOffBtn.addEventListener('click', () => {
 // ---------------------------
 
 function speakDefect(label) {
-
     if (!voiceEnabled || !speechUnlocked) return;
-
     if (!label) return;
 
     const normalized = label.toLowerCase().replace(/\s+/g, '_');
 
-    // Skip defect_free
+    // Silent fallback labels
     if (normalized === 'defect_free') return;
+    if (normalized === 'defect') return;
 
     const now = Date.now();
 
-    // Prevent repeating same label too fast
     if (
         normalized === lastSpokenLabel &&
         (now - lastSpokenTime) < SPEECH_COOLDOWN_MS
@@ -108,10 +106,7 @@ function speakDefect(label) {
         .replace(/_/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
 
-    const utterance = new SpeechSynthesisUtterance(
-        `${cleanLabel} detected`
-    );
-
+    const utterance = new SpeechSynthesisUtterance(`${cleanLabel} detected`);
     utterance.volume = 1.0;
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
@@ -335,7 +330,7 @@ function processVideoFrame(timestamp) {
                 // This lets us recognize the same bounding box across multiple frames
                 const boxKey = `${Math.round(startX/20)}_${Math.round(startY/20)}`;
                 
-                let label = "Defect"; // Fallback label
+                let label = null; // Fallback label
                 let confidence = detection.categories[0].score; // Detector confidence
 
                 // --- OPTIMIZATION 3 EXECUTION: Conditional Classification ---
@@ -369,7 +364,7 @@ function processVideoFrame(timestamp) {
                 // Normal drawing and voice logic below
                 const normalized = label.toLowerCase().replace(/\s+/g, '_');
 
-                if (normalized !== 'defect_free') {
+                if (normalized !== 'defect_free' && label) {
                     if (confidence > bestConfidence) {
                         bestConfidence = confidence;
                         bestLabel = label;
@@ -533,6 +528,9 @@ function processStaticImage() {
                     if (categories.length > 0) {
                         const topCategory = categories[0];
                         const label = topCategory.categoryName;
+                            if (label.toLowerCase().replace(/\s+/g, '_') === 'defect') {
+                                continue;
+                            }
                         const confidence = topCategory.score;
                         const normalized = label.toLowerCase().replace(/\s+/g, '_');
 
