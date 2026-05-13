@@ -362,9 +362,13 @@ function processVideoFrame(timestamp) {
                 }
 
                 // Normal drawing and voice logic below
+                if (!label) {
+                    continue;
+                }
+
                 const normalized = label.toLowerCase().replace(/\s+/g, '_');
 
-                if (normalized !== 'defect_free' && label) {
+                if (normalized !== 'defect_free' && normalized !== 'defect') {
                     if (confidence > bestConfidence) {
                         bestConfidence = confidence;
                         bestLabel = label;
