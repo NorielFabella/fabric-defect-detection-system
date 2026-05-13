@@ -113,6 +113,47 @@ function speakDefect(label) {
 }
 
 // ---------------------------
+// UI ROUTING & NAVIGATION
+// ---------------------------
+
+const viewLanding = document.getElementById('view-landing');
+const viewLive = document.getElementById('view-live');
+const viewUpload = document.getElementById('view-upload');
+
+const navLiveBtn = document.getElementById('nav-live-btn');
+const navUploadBtn = document.getElementById('nav-upload-btn');
+const backLiveBtn = document.getElementById('back-live-btn');
+const backUploadBtn = document.getElementById('back-upload-btn');
+
+// Navigate to Live Camera
+navLiveBtn.addEventListener('click', () => {
+    viewLanding.classList.add('hidden');
+    viewLive.classList.remove('hidden');
+});
+
+// Navigate to Image Upload
+navUploadBtn.addEventListener('click', () => {
+    viewLanding.classList.add('hidden');
+    viewUpload.classList.remove('hidden');
+});
+
+// Go back from Live Camera
+backLiveBtn.addEventListener('click', () => {
+    // Ensure camera turns off when leaving the page
+    if (!stopBtn.disabled) {
+        stopCamera();
+    }
+    viewLive.classList.add('hidden');
+    viewLanding.classList.remove('hidden');
+});
+
+// Go back from Image Upload
+backUploadBtn.addEventListener('click', () => {
+    viewUpload.classList.add('hidden');
+    viewLanding.classList.remove('hidden');
+});
+
+// ---------------------------
 // INITIALIZE MEDIAPIPE
 // ---------------------------
 

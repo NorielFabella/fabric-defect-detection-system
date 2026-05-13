@@ -5,17 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fabric Defect Detection</title>
     <link rel="stylesheet" href="style.css">
-    </head>
+</head>
 <body>
-    <div class="container">
-        <h1>Fabric Defect Detection</h1>
-        <div class="video-container">
-            <video id="video" autoplay playsinline></video>
-            <canvas id="canvas"></canvas>
+    <div id="view-landing" class="view active">
+        <div class="landing-content">
+            <header class="hero">
+                <h1>Fabric Defect Detection</h1>
+                <p>Automated, real-time quality control powered by Edge AI.</p>
+            </header>
+
+            <section class="features">
+                <h2>Key Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>📷 Real-Time Processing</h3>
+                        <p>Instantly scan and detect fabric defects using live camera feeds with minimal latency.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🧠 AI Classification</h3>
+                        <p>Accurately categorizes defect types and provides confidence scores directly on-screen.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🔊 Voice Alerts</h3>
+                        <p>Hands-free audio notifications announce specific defects as soon as they are identified.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>⚡ Edge Optimized</h3>
+                        <p>Runs entirely in your browser using GPU-accelerated MediaPipe models for privacy and speed.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="action-buttons">
+                <button id="nav-live-btn" class="primary-btn">Live Camera Detection</button>
+                <button id="nav-upload-btn" class="secondary-btn">Image Upload</button>
+            </div>
         </div>
-        <div class="controls">
-            <button id="startBtn">Start Camera</button>
-            <button id="stopBtn">Stop Camera</button>
+    </div>
+
+    <div id="view-live" class="view hidden">
+        <div class="header-bar">
+            <button class="back-btn" id="back-live-btn">← Back to Home</button>
+            <h2>Live Camera Detection</h2>
+        </div>
+        <div class="container">
+            <div class="video-container">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+            <div class="controls">
+                <button id="startBtn">Start Camera</button>
+                <button id="stopBtn">Stop Camera</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-upload" class="view hidden">
+        <div class="header-bar">
+            <button class="back-btn" id="back-upload-btn">← Back to Home</button>
+            <h2>Image Upload</h2>
+        </div>
+        <div class="container upload-container">
+            <div class="upload-box">
+                <input type="file" id="imageInput" accept="image/*">
+                <p>Select a fabric image to analyze for defects.</p>
+                </div>
         </div>
     </div>
 
