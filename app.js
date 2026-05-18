@@ -179,7 +179,7 @@ async function initializeMediaPipe() {
 
         imageClassifier = await ImageClassifier.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: 'classifierv6.tflite',
+                modelAssetPath: 'classifierv7.tflite',
                 delegate: 'GPU'
             },
             runningMode: 'IMAGE',
