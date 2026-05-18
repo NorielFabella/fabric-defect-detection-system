@@ -174,7 +174,7 @@ async function initializeMediaPipe() {
             },
             runningMode: 'VIDEO',
             maxResults: 5,
-            scoreThreshold: 0.3
+            scoreThreshold: 0.6
         });
 
         imageClassifier = await ImageClassifier.createFromOptions(vision, {
@@ -184,7 +184,7 @@ async function initializeMediaPipe() {
             },
             runningMode: 'IMAGE',
             maxResults: 3,
-            scoreThreshold: 0.3
+            scoreThreshold: 0.6
         });
 
         console.log('Models loaded successfully');
