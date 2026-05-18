@@ -12,9 +12,6 @@ const latencyValEl = document.getElementById('latency-val');
 let frameCount = 0;
 let lastFpsTime = performance.now();
 
-// Add these to the top of app.js
-let classificationThrottle = 0;
-let cachedLabels = new Map(); // Store labels for boxes
 
 let mediaStream = null;
 let objectDetector = null;
@@ -182,7 +179,7 @@ async function initializeMediaPipe() {
 
         imageClassifier = await ImageClassifier.createFromOptions(vision, {
             baseOptions: {
-                modelAssetPath: 'classifierv5.tflite',
+                modelAssetPath: 'classifierv6.tflite',
                 delegate: 'GPU'
             },
             runningMode: 'IMAGE',
@@ -287,6 +284,10 @@ let animationFrameId = null;
 // MAIN PROCESSING LOOP
 // ---------------------------
 
+// ---------------------------
+// MAIN PROCESSING LOOP
+// ---------------------------
+
 function processVideoFrame(timestamp) {
     ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
@@ -297,15 +298,6 @@ function processVideoFrame(timestamp) {
 
     const frameStartTime = performance.now(); // Start timer
 
-    // --- OPTIMIZATION 3 SETUP: Frame Skipping ---
-    classificationThrottle++;
-    const shouldClassify = classificationThrottle % 3 === 0; // Classify every 3rd frame
-    
-    // Clear the cache when we classify to prevent old box data from building up in memory
-    if (shouldClassify) {
-        cachedLabels.clear();
-    }
-
     try {
         const detections = objectDetector.detectForVideo(videoElement, timestamp);
         let bestLabel = null;
@@ -313,55 +305,33 @@ function processVideoFrame(timestamp) {
 
         if (detections.detections && detections.detections.length > 0) {
             
-            // --- OPTIMIZATION 2: Limit Classifications ---
-            // Sort by the detector's confidence score and only keep the top 2 detections
-            const topDetections = detections.detections
-                .sort((a, b) => b.categories[0].score - a.categories[0].score)
-                .slice(0, 2); 
-
-            for (const detection of topDetections) {
+            // Loop through ALL detections (Optimization removed!)
+            for (const detection of detections.detections) {
                 const bbox = detection.boundingBox;
                 const startX = bbox.originX;
                 const startY = bbox.originY;
                 const width = bbox.width;
                 const height = bbox.height;
-
-                // Create a spatial key based on approximate coordinates (rounded to nearest 20px)
-                // This lets us recognize the same bounding box across multiple frames
-                const boxKey = `${Math.round(startX/20)}_${Math.round(startY/20)}`;
                 
-                let label = null; // Fallback label
-                let confidence = detection.categories[0].score; // Detector confidence
+                let label = null; 
+                let confidence = detection.categories[0].score; 
 
-                // --- OPTIMIZATION 3 EXECUTION: Conditional Classification ---
-                if (shouldClassify) {
-                    offscreenCanvas.width = width;
-                    offscreenCanvas.height = height;
-                    offscreenCtx.drawImage(videoElement, startX, startY, width, height, 0, 0, width, height);
-                    
-                    const classification = imageClassifier.classify(offscreenCanvas);
+                // Classify every cropped region immediately
+                offscreenCanvas.width = width;
+                offscreenCanvas.height = height;
+                offscreenCtx.drawImage(videoElement, startX, startY, width, height, 0, 0, width, height);
+                
+                const classification = imageClassifier.classify(offscreenCanvas);
 
-                    if (classification.classifications && classification.classifications.length > 0) {
-                        const categories = classification.classifications[0].categories;
-                        if (categories.length > 0) {
-                            const topCategory = categories[0];
-                            label = topCategory.categoryName;
-                            confidence = topCategory.score;
-                            
-                            // Save result to cache
-                            cachedLabels.set(boxKey, { label: label, confidence: confidence });
-                        }
-                    }
-                } else {
-                    // Skip the classifier and use the cached result from the previous frame
-                    const cached = cachedLabels.get(boxKey);
-                    if (cached) {
-                        label = cached.label;
-                        confidence = cached.confidence;
+                if (classification.classifications && classification.classifications.length > 0) {
+                    const categories = classification.classifications[0].categories;
+                    if (categories.length > 0) {
+                        const topCategory = categories[0];
+                        label = topCategory.categoryName;
+                        confidence = topCategory.score;
                     }
                 }
 
-                // Normal drawing and voice logic below
                 if (!label) {
                     continue;
                 }
@@ -393,6 +363,7 @@ function processVideoFrame(timestamp) {
                 }
             }
 
+            // Voice alert for highest confidence defect
             if (bestLabel && bestConfidence >= 0.5) {
                 speakDefect(bestLabel);
             }
