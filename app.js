@@ -308,6 +308,19 @@ function processVideoFrame(timestamp) {
             // Loop through ALL detections (Optimization removed!)
             for (const detection of detections.detections) {
                 const bbox = detection.boundingBox;
+                console.log({
+    originX: bbox.originX,
+    originY: bbox.originY,
+    width: bbox.width,
+    height: bbox.height,
+    videoWidth: videoElement.videoWidth,
+    videoHeight: videoElement.videoHeight
+    
+});
+
+console.log(video.getBoundingClientRect());
+
+console.log(canvas.getBoundingClientRect());
                 const startX = bbox.originX;
                 const startY = bbox.originY;
                 const width = bbox.width;
@@ -465,9 +478,13 @@ imageInput.addEventListener('change', (event) => {
 
 // Once image renders, process it
 uploadedImage.addEventListener('load', () => {
-    // Match canvas internal resolution to the actual image pixels
+
     uploadCanvas.width = uploadedImage.naturalWidth;
     uploadCanvas.height = uploadedImage.naturalHeight;
+
+    uploadCanvas.style.width = uploadedImage.clientWidth + "px";
+    uploadCanvas.style.height = uploadedImage.clientHeight + "px";
+
     processStaticImage();
 });
 
@@ -486,6 +503,38 @@ function processStaticImage() {
         if (detections.detections && detections.detections.length > 0) {
             for (const detection of detections.detections) {
                 const bbox = detection.boundingBox;
+                console.log({
+    originX: bbox.originX,
+    originY: bbox.originY,
+    width: bbox.width,
+    height: bbox.height,
+    imageWidth: uploadedImage.naturalWidth,
+    imageHeight: uploadedImage.naturalHeight
+});
+console.log(uploadedImage.getBoundingClientRect());
+
+console.log(uploadCanvas.getBoundingClientRect());
+console.log("IMAGE", uploadedImage.getBoundingClientRect());
+console.log("CANVAS", uploadCanvas.getBoundingClientRect());
+
+console.log(
+    "Internal:",
+    uploadCanvas.width,
+    uploadCanvas.height
+);
+
+console.log(
+    "Displayed:",
+    uploadCanvas.clientWidth,
+    uploadCanvas.clientHeight
+);
+
+console.log(
+    "Image:",
+    uploadedImage.clientWidth,
+    uploadedImage.clientHeight
+);
+
                 const startX = bbox.originX;
                 const startY = bbox.originY;
                 const width = bbox.width;
