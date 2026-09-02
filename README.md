@@ -10,8 +10,6 @@ The application analyzes fabric through either a **live camera feed** or an **up
 
 🔗 **Live Demo:** [https://fabric-defect-system-2.vercel.app](https://fabric-defect-system-2.vercel.app)
 
-💻 **Repository:** [View Source Code](YOUR_REPOSITORY_URL)
-
 ---
 
 ## Screenshots
